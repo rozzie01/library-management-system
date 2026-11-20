@@ -1,5 +1,6 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
+import { PrismaClient, Role } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -60,7 +61,24 @@ async function main() {
     });
   }
 
-  console.log('Seeded 4 genres and 16 books');
+  // 3. Create (or refresh) the librarian account
+  const librarianPassword = process.env.SEED_LIBRARIAN_PASSWORD;
+  if (!librarianPassword) {
+    throw new Error('Set SEED_LIBRARIAN_PASSWORD in .env before seeding');
+  }
+  const passwordHash = await bcrypt.hash(librarianPassword, 10);
+  await prisma.user.upsert({
+    where: { email: 'librarian@library.test' },
+    update: { passwordHash, role: Role.LIBRARIAN }, // refresh the password if the user exists
+    create: {
+      email: 'librarian@library.test',
+      name: 'Head Librarian',
+      role: Role.LIBRARIAN,
+      passwordHash,
+    },
+  });
+
+  console.log('Seeded 4 genres, 16 books and 1 librarian');
 }
 
 main()
